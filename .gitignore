@@ -6,7 +6,6 @@ venv/
 1_BillNER/batch_3/
 1_BillNER/Selected/
 1_BillNER/archive.zip
-1_BillNER/Untitled.ipynb
 __pycache__/
 .ipynb_checkpoints/
 *.xlsx
