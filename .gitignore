@@ -1,0 +1,12 @@
+Bill-Wise-V2.0/
+.env/
+venv/
+1_BillNER/batch_1/
+1_BillNER/batch_2/
+1_BillNER/batch_3/
+1_BillNER/Selected/
+1_BillNER/archive.zip
+1_BillNER/Untitled.ipynb
+__pycache__/
+.ipynb_checkpoints/
+*.xlsx

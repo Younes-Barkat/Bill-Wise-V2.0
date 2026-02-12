@@ -1,0 +1,9 @@
+pandas
+numpy
+pillow
+opencv-python
+matplotlib
+jupyter
+scipy
+pytesseract
+spacy
