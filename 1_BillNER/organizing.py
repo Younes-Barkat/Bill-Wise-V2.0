@@ -11,7 +11,7 @@ def organize(src_folder, output_name, limit=300):
                 if count > limit:
                     return
                 f1 = os.path.join(root, fname)
-                new_fname = f"{count}.jpeg"
+                new_fname = f"{count:03d}.jpeg"
                 f2 = os.path.join(output_path, new_fname)
                 shutil.copy2(f1, f2)
                 count += 1
