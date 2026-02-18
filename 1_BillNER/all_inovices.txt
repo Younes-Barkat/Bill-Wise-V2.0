@@ -1,4 +1,4 @@
-id	text		
+id	text	tag	
 001.jpeg	Invoice	O	
 001.jpeg	no:	O	
 001.jpeg	51109338	B-ID	
@@ -140,7 +140,7 @@ id	text
 001.jpeg	 	O	
 001.jpeg	Client:	O	
 001.jpeg	Becker	B-CN	
-001.jpeg	Ltd	B-CN	
+001.jpeg	Ltd	I-CN	
 001.jpeg	8012	O	
 001.jpeg	Stewart	O	
 001.jpeg	Summit	O	
