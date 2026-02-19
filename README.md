@@ -7,7 +7,7 @@
 ![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?style=flat-square&logo=windows&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)
 
-An AI-powered Named Entity Recognition (NER) system that automatically extracts key information from invoice or bills images using OCR and a custom-trained spaCy model.
+An AI-powered Named Entity Recognition (NER) system that automatically extracts key information from invoice or bill images using OCR and a custom-trained spaCy model.
 
 ---
 
@@ -15,7 +15,15 @@ An AI-powered Named Entity Recognition (NER) system that automatically extracts 
 
 Bill-Wise V2.0 processes invoice/bill images and identifies structured fields such as invoice IDs, dates, seller names, client names, IBANs, and totals — turning unstructured scanned documents into structured data.
 
-The pipeline goes from raw invoice images → OCR text extraction → NER annotation → spaCy model training → entity extraction.
+The pipeline goes from raw invoice images → OCR text extraction → manual BIO labeling → spaCy model training → entity extraction.
+
+---
+
+## Prediction Example
+
+The model takes an invoice image, extracts text via OCR, and highlights the named entities directly on the document:
+
+![Prediction Example](predicted_example.jpeg)
 
 ---
 
@@ -29,14 +37,14 @@ The pipeline goes from raw invoice images → OCR text extraction → NER annota
 
 ## Entity Labels Using BIO Labeling
 
-| Label   | Description        | Example                     |
-| ------- | ------------------ | --------------------------- |
-| `ID`    | Invoice number     | `51109338`                  |
-| `DATE`  | Date of issue      | `04/13/2013`                |
-| `SN`    | Seller name        | `Andrews, Kirby and Valdez` |
-| `CN`    | Client name        | `Becker Ltd`                |
-| `IBAN`  | Seller bank IBAN   | `GB75MCRL06841367619257`    |
-| `TOTAL` | Grand total amount | `$6,204.19`                 |
+| Label | Description | Example |
+|-------|-------------|---------|
+| `ID` | Invoice number | `51109338` |
+| `DATE` | Date of issue | `04/13/2013` |
+| `SN` | Seller name | `Andrews, Kirby and Valdez` |
+| `CN` | Client name | `Becker Ltd` |
+| `IBAN` | Seller bank IBAN | `GB75MCRL06841367619257` |
+| `TOTAL` | Grand total amount | `$6,204.19` |
 
 ---
 
@@ -48,8 +56,8 @@ The pipeline goes from raw invoice images → OCR text extraction → NER annota
 ├── batch_2/                  # Raw invoice image batch 2
 ├── batch_3/                  # Raw invoice image batch 3
 ├── data/
-│   ├── TrainData.pickle      # training data (images 001–265)
-│   ├── TestData.pickle       # testing data (images 266–300)
+│   ├── TrainData.pickle      # Annotated training data (images 001-265)
+│   ├── TestData.pickle       # Annotated testing data (images 266-300)
 │   ├── train.spacy           # spaCy binary training corpus
 │   ├── test.spacy            # spaCy binary test corpus
 │   └── output/               # Intermediate outputs
@@ -57,13 +65,14 @@ The pipeline goes from raw invoice images → OCR text extraction → NER annota
 │   ├── model-best/           # Best checkpoint during training
 │   └── model-last/           # Final trained spaCy NER model
 ├── Selected/                 # 300 selected and renamed invoice images
-├── all_inovices.csv          # OCR-extracted tokens with NER tags
+├── all_inovices.csv          # OCR-extracted tokens with BIO tags
 ├── all_inovices.txt          # Text version of extracted data
 ├── organizing.py             # Selects and organizes invoice images
 ├── preprocess.py             # Converts pickle annotations to .spacy format
-├── Preparation.ipynb         # NER annotation and labeling notebook
+├── Preparation.ipynb         # BIO annotation and labeling notebook
 ├── Preparation2.ipynb        # OCR extraction with Tesseract
 ├── Data_Preprocessing.ipynb  # Train/test split and final preprocessing
+├── predictions.ipynb         # Inference and bounding box visualization
 ├── base_config.cfg           # spaCy base configuration
 └── config.cfg                # Full spaCy training configuration
 ```
@@ -76,28 +85,39 @@ The pipeline goes from raw invoice images → OCR text extraction → NER annota
 Invoice Images (JPEG)
        |
        v
-[ Preparation2.ipynb ]  — Tesseract OCR extracts tokens per image
+[ Preparation2.ipynb ]         -- Import libraries, load images, run Tesseract OCR
+       |                          Clean extracted text, save tokens to CSV
+       v
+  all_inovices.csv  (id, text)
        |
+       v
+[ Manual BIO Labeling ]        -- Tag each token with B-/I- prefix for each entity
+       |                          Done manually for all 300 invoices (~half a day of work)
        v
   all_inovices.csv  (id, text, tag)
        |
        v
-[ Preparation.ipynb ]   — NER annotation
+[ Preparation.ipynb ]          -- Load spaCy NER model, extract text from images
+       |                          Get named entities, convert dataframe to content,
+       |                          join labels to token dataframes, apply bounding boxes,
+       |                          combine BIO information, tag each word
+       v
+TrainData.pickle / TestData.pickle
        |
        v
-TrainData.pickle (images 001–265) / TestData.pickle (images 266–300)
-       |
-       v
-[ preprocess.py ]       — Convert to spaCy DocBin format
+[ preprocess.py ]              -- Convert annotations to spaCy DocBin format
        |
        v
 train.spacy / test.spacy
        |
        v
-[ spacy train ]         — Train NER model
+[ spacy train ]                -- Train tok2vec + NER pipeline
        |
        v
   output/model-best  /  output/model-last
+       |
+       v
+[ predictions.ipynb ]          -- Load model, run inference, draw bounding boxes
 ```
 
 ---
@@ -135,11 +155,21 @@ Selects up to 300 invoice images from the batch folders and copies them into `Se
 
 Open and run **`Preparation2.ipynb`** — this uses Tesseract to extract tokens from each invoice image and saves the results to `all_inovices.csv`.
 
-### 6. Annotate and prepare training data
+### 6. Manual BIO Labeling
 
-Open and run **`Preparation.ipynb`** and **`Data_Preprocessing.ipynb`** to annotate entities and generate `TrainData.pickle` (images 1–265) and `TestData.pickle` (images 266–300).
+Each token in `all_inovices.csv` was labeled manually using the BIO (Beginning / Inside / Outside) tagging scheme for all 300 invoice images. This was the most time-intensive step, taking approximately half a day to complete.
 
-### 7. Convert to spaCy format
+| Tag | Meaning |
+|-----|---------|
+| `B-<LABEL>` | Beginning of an entity |
+| `I-<LABEL>` | Inside (continuation) of an entity |
+| `O` | Outside — not an entity |
+
+### 7. Prepare training data
+
+Open and run **`Preparation.ipynb`** and **`Data_Preprocessing.ipynb`** to load the labeled data, join labels to token dataframes, apply bounding box coordinates, combine the BIO information, and generate `TrainData.pickle` (images 1-265) and `TestData.pickle` (images 266-300).
+
+### 8. Convert to spaCy format
 
 ```bash
 python preprocess.py
@@ -147,7 +177,7 @@ python preprocess.py
 
 Generates `data/train.spacy` and `data/test.spacy`.
 
-### 8. Initialize and train the model
+### 9. Initialize and train the model
 
 ```bash
 python -m spacy init fill-config ./base_config.cfg ./config.cfg
@@ -155,20 +185,28 @@ python -m spacy init fill-config ./base_config.cfg ./config.cfg
 python -m spacy train ./config.cfg --output ./output/ --paths.train ./data/train.spacy --paths.dev ./data/test.spacy
 ```
 
+### 10. Run predictions
+
+Open **`predictions.ipynb`** to load the trained model, run inference on new invoice images, and visualize the extracted entities with bounding boxes drawn directly on the document.
+
+---
+
 ## Training Results
 
-The model was trained on **265 annotated invoice images** and evaluated on **35 held-out images** (images 266–300), using spaCy's `tok2vec` + `ner` pipeline on CPU.
+The model was trained on **265 annotated invoice images** and evaluated on **35 held-out images** (images 266-300), using spaCy's `tok2vec` + `ner` pipeline on CPU.
 
-| Metric             | Score |
-| ------------------ | ----- |
-| F1-Score (ENTS_F)  | ~91%  |
-| Precision (ENTS_P) | ~91%  |
-| Recall (ENTS_R)    | ~91%  |
-| Best overall score | 0.91  |
+| Metric | Score |
+|--------|-------|
+| F1-Score (ENTS_F) | ~91% |
+| Precision (ENTS_P) | ~91% |
+| Recall (ENTS_R) | ~91% |
+| Best overall score | 0.91 |
 
-Training converged around 3,000–3,800 steps with `patience = 1600` and `max_steps = 20000`.
+Training converged around 3,000-3,800 steps with `patience = 1600` and `max_steps = 20000`.
 
 ![Training Process](TrainingProcess.png)
+
+---
 
 ## Model Architecture
 
