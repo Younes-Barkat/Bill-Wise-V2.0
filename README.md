@@ -120,7 +120,7 @@ Bill-Wise-V2.0/
 │   ├── step3.jpeg
 │   ├── step4.jpeg
 │   ├── step5.jpeg
-│   └── step6.jpeg
+│   └── final_step.jpeg
 ├── banner.png
 ├── predicted_example.jpeg
 ├── TrainingProcess.png
