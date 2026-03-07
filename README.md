@@ -27,14 +27,14 @@ The pipeline goes from raw invoice images → document detection → perspective
 
 The system handles real-world photos taken with a phone, not just clean scans. Here is the full processing pipeline on a real invoice photo:
 
-| Step | Description | Preview |
-|------|-------------|---------|
-| 1 | Original photo taken with phone | ![step1](steps/step1.jpeg) |
-| 2 | Binary threshold mask to detect the document | ![step2](steps/step2.jpeg) |
-| 3 | Document contour detected (red border) | ![step3](steps/step3.jpeg) |
-| 4 | Perspective warp — document straightened | ![step4](steps/step4.jpeg) |
-| 5 | Clean cropped document ready for OCR | ![step5](steps/step5.jpeg) |
-| 6 | Final prediction with bounding boxes | ![step6](steps/step6.jpeg) |
+| Step | Description                                  | Preview                         |
+| ---- | -------------------------------------------- | ------------------------------- |
+| 1    | Original photo taken with phone              | ![step1](steps/step1.jpeg)      |
+| 2    | Binary threshold mask to detect the document | ![step2](steps/step2.jpeg)      |
+| 3    | Document contour detected (red border)       | ![step3](steps/step3.jpeg)      |
+| 4    | Perspective warp — document straightened     | ![step4](steps/step4.jpeg)      |
+| 5    | Clean cropped document ready for OCR         | ![step5](steps/step5.jpeg)      |
+| 6    | Final prediction with bounding boxes         | ![step6](steps/final_step.jpeg) |
 
 ---
 
@@ -56,14 +56,14 @@ The model takes an invoice image, extracts text via OCR, and highlights the name
 
 ## 🏷️ Entity Labels Using BIO Labeling
 
-| Label | Description | Example |
-|-------|-------------|---------|
-| `ID` | Invoice number | `51109338` |
-| `DATE` | Date of issue | `04/13/2013` |
-| `SN` | Seller name | `Andrews, Kirby and Valdez` |
-| `CN` | Client name | `Becker Ltd` |
-| `IBAN` | Seller bank IBAN | `GB75MCRL06841367619257` |
-| `TOTAL` | Grand total amount | `$6,204.19` |
+| Label   | Description        | Example                     |
+| ------- | ------------------ | --------------------------- |
+| `ID`    | Invoice number     | `51109338`                  |
+| `DATE`  | Date of issue      | `04/13/2013`                |
+| `SN`    | Seller name        | `Andrews, Kirby and Valdez` |
+| `CN`    | Client name        | `Becker Ltd`                |
+| `IBAN`  | Seller bank IBAN   | `GB75MCRL06841367619257`    |
+| `TOTAL` | Grand total amount | `$6,204.19`                 |
 
 ---
 
@@ -141,25 +141,25 @@ The system is built around two core modules: **`bill_scanner()`** for document e
        v
 ┌──────────────────────────────────────────────────────────────────┐
 │  bill_scanner(image)       [ Bill-Scanner/bill_scanner_1.ipynb ] │
-│                                                                   │
-│  1. resize_func()                                                 │
+│                                                                  │
+│  1. resize_func()                                                │
 │     └── Resize to width=590px keeping aspect ratio               │
-│                                                                   │
-│  2. White region detection                                        │
+│                                                                  │
+│  2. White region detection                                       │
 │     └── Convert BGR → HSV                                        │
 │     └── Mask white pixels: inRange(HSV, [0,0,170], [180,50,255]) │
 │     └── Morphological Close + Open (20x20 kernel) to clean mask  │
-│                                                                   │
-│  3. Document contour detection                                    │
+│                                                                  │
+│  3. Document contour detection                                   │
 │     └── findContours → sort by area (largest first)              │
 │     └── convexHull → approxPolyDP (tolerance = 0.02 * perimeter) │
 │     └── Keep first contour with exactly 4 corners                │
-│                                                                   │
-│  4. four_point_transform() — imutils                              │
+│                                                                  │
+│  4. four_point_transform() — imutils                             │
 │     └── Scale corner points back to original resolution          │
 │     └── Apply perspective warp → flat straightened document      │
-│                                                                   │
-│  5. bright_cont()                                                 │
+│                                                                  │
+│  5. bright_cont()                                                │
 │     └── Adjust brightness and/or contrast via cv2.addWeighted    │
 │     └── Improves OCR accuracy on dark or low-contrast photos     │
 └──────────────────────────────────────────────────────────────────┘
@@ -170,36 +170,36 @@ The system is built around two core modules: **`bill_scanner()`** for document e
        v
 ┌──────────────────────────────────────────────────────────────────┐
 │  get_predictions(image)                    [ predictions.py ]    │
-│                                                                   │
-│  1. pytesseract.image_to_data()                                   │
+│                                                                  │
+│  1. pytesseract.image_to_data()                                  │
 │     └── Extract tokens with bounding box coords                  │
 │         (left, top, width, height) into a DataFrame              │
-│                                                                   │
-│  2. cleanText()                                                   │
+│                                                                  │
+│  2. cleanText()                                                  │
 │     └── Strip whitespace and punctuation from each token         │
 │     └── Remove empty tokens                                      │
-│                                                                   │
-│  3. spaCy NER inference                                           │
+│                                                                  │
+│  3. spaCy NER inference                                          │
 │     └── Join all clean tokens into one content string            │
 │     └── model_ner(content) → doc.to_json()                       │
 │     └── Extract entity spans (start/end character positions)     │
-│                                                                   │
-│  4. Token-entity alignment                                        │
+│                                                                  │
+│  4. Token-entity alignment                                       │
 │     └── Compute character start/end for each Tesseract token     │
 │     └── Merge NER labels onto the bounding box DataFrame         │
-│                                                                   │
-│  5. group_gen() — consecutive token grouping                      │
+│                                                                  │
+│  5. group_gen() — consecutive token grouping                     │
 │     └── Group adjacent tokens sharing the same label             │
 │     └── Aggregate bounding boxes:                                │
 │         left=min, right=max, top=min, bottom=max                 │
-│                                                                   │
+│                                                                  │
 │  6. parser() — entity value cleaning per label type              │
 │     └── ID / TOTAL  → digits only (re.sub \D)                    │
 │     └── DATE        → digits and '/' only                        │
 │     └── SN / CN     → letters and ',' only                       │
 │     └── IBAN        → alphanumeric only                          │
-│                                                                   │
-│  7. Draw results on image                                         │
+│                                                                  │
+│  7. Draw results on image                                        │
 │     └── cv2.rectangle() — blue bounding box per entity group     │
 │     └── cv2.putText()   — red label text above each box          │
 └──────────────────────────────────────────────────────────────────┘
@@ -244,11 +244,11 @@ Open and run **`Preparation2.ipynb`** — runs Tesseract OCR on the clean image 
 
 Each token was labeled manually using the BIO tagging scheme for all 300 invoice images. This was the most time-intensive step, taking approximately half a day to complete.
 
-| Tag | Meaning |
-|-----|---------|
-| `B-<LABEL>` | Beginning of an entity |
+| Tag         | Meaning                            |
+| ----------- | ---------------------------------- |
+| `B-<LABEL>` | Beginning of an entity             |
 | `I-<LABEL>` | Inside (continuation) of an entity |
-| `O` | Outside — not an entity |
+| `O`         | Outside — not an entity            |
 
 ### 7. Prepare training data
 
@@ -278,12 +278,12 @@ Open **`final_predictions.ipynb`** — loads the trained model, calls `bill_scan
 
 The model was trained on **265 annotated invoice images** and evaluated on **35 held-out images** (images 266-300), using spaCy's `tok2vec` + `ner` pipeline on CPU.
 
-| Metric | Score |
-|--------|-------|
-| F1-Score (ENTS_F) | ~91% |
-| Precision (ENTS_P) | ~91% |
-| Recall (ENTS_R) | ~91% |
-| Best overall score | 0.91 |
+| Metric             | Score |
+| ------------------ | ----- |
+| F1-Score (ENTS_F)  | ~91%  |
+| Precision (ENTS_P) | ~91%  |
+| Recall (ENTS_R)    | ~91%  |
+| Best overall score | 0.91  |
 
 Training converged around 3,000-3,800 steps with `patience = 1600` and `max_steps = 20000`.
 
